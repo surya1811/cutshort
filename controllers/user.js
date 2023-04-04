@@ -1,7 +1,7 @@
 const User =require('../models/user');
 
 exports.getUserById = (req, res) => {
-User.findById(req.params.id, (err, user) => {
+User.findById(req.params.userId, (err, user) => {
 if (err || !user) {
 return res.status(400).json({ error: 'User not found' });
 }

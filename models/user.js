@@ -17,6 +17,13 @@ const userSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  refreshToken: {
+    type: String,
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'user']
+  },
   posts: [
     {
       type: mongoose.Schema.Types.ObjectId,
