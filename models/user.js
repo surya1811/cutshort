@@ -22,7 +22,8 @@ const userSchema = mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'user']
+    enum: ['admin', 'user'],
+    required: true,
   },
   posts: [
     {
@@ -42,3 +43,4 @@ const userSchema = mongoose.Schema({
 });
 
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);
+

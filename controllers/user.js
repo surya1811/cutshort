@@ -1,24 +1,54 @@
 const User =require('../models/user');
 
-exports.getUserById = (req, res) => {
-User.findById(req.params.userId, (err, user) => {
-if (err || !user) {
+exports.getUserById =async (req, res) => {
+    try{
+const user=await User.findById(req.params.userId)
+if ( !user) {
 return res.status(400).json({ error: 'User not found' });
 }
 const { name, email } = user;
 res.json({ _id: user._id, name, email });
-});
+}catch(err){
+    return res.status(500).json({ error: err.message });
+}
 };
 
-exports.searchUsers = (req, res) => {
-const query = req.query.q;
-User.find({ name: { $regex: query, $options: 'i' } }, (err, users) => {
-if (err) {
-return res.status(400).json({ error: 'Failed to search users' });
-}
-res.json(users);
-});
-};
+exports.searchUsers = async (req, res) => {
+    try {
+      const query = req.params.q;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+  
+      const users = await User.find({
+        $or: [
+          { name: { $regex: `.*${query}.*`, $options: "i" } },
+          { email: { $regex: `.*${query}.*`, $options: "i" } },
+        ],
+      })
+        .skip((page - 1) * limit)
+        .limit(limit);
+  
+      const count = await User.countDocuments({
+        $or: [
+          { name: { $regex: `.*${query}.*`, $options: "i" } },
+          { email: { $regex: `.*${query}.*`, $options: "i" } },
+        ],
+      });
+  
+      if (!users) {
+        return res.status(400).json({ error: "Failed to search users" });
+      }
+  
+      res.json({
+        currentPage: page,
+        totalPages: Math.ceil(count / limit),
+        users,
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  };
+  
 
 exports.addPostComment = (req, res) => {
 const { text } = req.body;

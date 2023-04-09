@@ -1,5 +1,6 @@
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 
 
@@ -13,8 +14,11 @@ const registerUser = async (req, res) => {
       return res.status(409).json({ message: 'User already exists' });
     }
 
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Create new user
-    const newUser = new User({ email, password, name, role });
+    const newUser = new User({ email, password: hashedPassword, name, role });
     await newUser.save();
 
     const refreshToken = jwt.sign({ userId: newUser._id, role: role }, process.env.REFRESH_TOKEN_SECRET);
@@ -32,7 +36,7 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    console.log(req.body)
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (!existingUser) {
@@ -40,7 +44,7 @@ const loginUser = async (req, res) => {
     }
 
     // Check if password is correct
-    const isPasswordCorrect = await existingUser.comparePassword(password);
+    const isPasswordCorrect = await bcrypt.compare(password, existingUser.password);
     if (!isPasswordCorrect) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -55,21 +59,21 @@ const loginUser = async (req, res) => {
 };
 
 function generateAccessToken(user) {
-  return jwt.sign({ userId: user._id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+  return jwt.sign({ _id: user._id, role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+}
+function generateToken(user) {
+  return jwt.sign({ _id: user.userId.toString(), role: user.role }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
 }
 
 const generateNewAccessToken = (req, res) => {
   const refreshToken = req.body.token;
-  jwt.decode(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decode) => {
-    if (err) {
-      res.status(400).json({ error: err })
-    }
-    const accessToken = generateAccessToken(decode);
-    return res.status(200).json({ accessToken: accessToken })
-
-  })
-
-}
-
-
+  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decode) => { // Use jwt.verify instead of jwt.decode
+  if (err) {
+  return res.status(400).json({ error: err }); // Return the response with an error
+  }
+  const accessToken = generateToken(decode);
+  return res.status(200).json({ accessToken: accessToken });
+  });
+  };
 module.exports = { registerUser, loginUser, generateNewAccessToken };
+

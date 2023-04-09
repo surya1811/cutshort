@@ -6,7 +6,7 @@ const { addPostComment, getUserById, searchUsers } = require('../controllers/use
 router.get('/:userId', getUserById);
 
 // Get other users
-router.get('/search', searchUsers);
+router.get('/search/:q', searchUsers);
 
 // Post comment of own 
 router.post('/:userId/postComment', addPostComment);
