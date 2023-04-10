@@ -4,14 +4,17 @@ const expect = chai.expect;
 const supertest = require('supertest');
 const app = require('../app');
 const User = require('../models/user');
-
+const jwt = require('jsonwebtoken');
+const { generateNewAccessToken } = require('../controllers/auth');
+const Chance = require('chance');
+const chance = new Chance();
 describe('Auth API', () => {
   let accessToken;
-
+  const email = chance.email();
   before(async () => {
     // create a test user
     const user = new User({
-      email: 'test@example.com',
+      email,
       password: 'password',
       name: 'Test User',
       role: 'user'
@@ -24,7 +27,7 @@ describe('Auth API', () => {
       const res = await supertest(app)
         .post('/auth/register')
         .send({
-          email: 'newuser@example.com',
+          email,
           password: 'password',
           name: 'New User',
           role: 'user'
@@ -78,28 +81,63 @@ describe('Auth API', () => {
     });
   });
 
-  describe('POST /auth/token', () => {
-    it('should generate a new access token using a refresh token', async () => {
-      const res = await supertest(app)
-        .post('/auth/token')
-        .send({ token: accessToken })
-        .expect(200);
-
-      expect(res.body.accessToken).to.be.a('string');
+  describe('POST /auth/generateNewAccessToken', () => {
+    it('should generate a new access token and return a response with status 200', async () => {
+      const refreshToken = 'some-refresh-token';
+  
+      // create a test user
+      const user = new User({
+        email: 'testuser1@example.com',
+        password: 'password',
+        name: 'Test User',
+        role: 'user'
+      });
+      await user.save();
+  
+      // generate a refresh token for the test user
+      const refreshTokenData = { userId: user.id, type: 'refresh' };
+      const refreshTokenOptions = { expiresIn: '1h' };
+      const testRefreshToken = jwt.sign(refreshTokenData, process.env.JWT_SECRET, refreshTokenOptions);
+  
+      // replace the request body with the test refresh token
+      const req = {
+        body: {
+          token: testRefreshToken
+        }
+      };
+  
+      // mock the response object
+      const res = {
+        status: (statusCode) => {
+          expect(statusCode).to.equal(200);
+          return {
+            json: (responseBody) => {
+              expect(responseBody).to.have.property('accessToken');
+              expect(responseBody.accessToken).to.be.a('string');
+            }
+          };
+        }
+      };
+  
+      await generateNewAccessToken(req, res);
+  
+      // delete the test user
+      await User.deleteOne({ email: 'testuser1@example.com' });
     });
-
+  
     it('should return a 400 error if the refresh token is invalid', async () => {
       const res = await supertest(app)
-        .post('/auth/token')
+        .post('/auth/generateNewAccessToken')
         .send({ token: 'invalidtoken' })
         .expect(400);
-
+  
       expect(res.body.error).to.be.a('object');
     });
   });
+  
 
   after(async () => {
     // delete the test user
-    await User.deleteOne({ email: 'test@example.com' });
+    await User.deleteOne({ email: 'test1@example.com' });
   });
 });

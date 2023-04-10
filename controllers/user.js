@@ -49,19 +49,3 @@ exports.searchUsers = async (req, res) => {
     }
   };
   
-
-exports.addPostComment = (req, res) => {
-const { text } = req.body;
-const comment = { text, postedBy: req.user._id };
-User.findByIdAndUpdate(
-req.params.userId,
-{ $push: { postComments: comment } },
-{ new: true, select: '_id name email postComments' },
-(err, user) => {
-if (err || !user) {
-return res.status(400).json({ error: 'Failed to add post comment' });
-}
-res.json(user);
-}
-);
-};

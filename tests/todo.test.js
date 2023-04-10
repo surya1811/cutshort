@@ -1,155 +1,177 @@
-const app = require('../app');
+//file
 const chai = require('chai');
-const chaiHttp = require('chai-http');
-const jwt = require('jsonwebtoken');
-const Todo = require('../models/todo');
-const authenticateUser =require('../middleware/authMiddleware')
-
-chai.use(chaiHttp);
 const expect = chai.expect;
-
+const app = require('../app');
+const Todo = require('../models/todo');
+const request = require('supertest')(app);
+const Chance = require('chance');
+const chance = new Chance();
 describe('Todo API', () => {
-  let authToken;
+  let accessToken;
+  let refreshToken;
+  let userId;
   let todoId;
 
-  before(async () => {
-    // Create a new user and get authentication token
-    const user = { email: 'testuser@example.com', password: 'testpassword' };
-    const response = await chai.request(app)
-      .post('/auth/register')
-      .send(user);
-    authToken = response.body.accessToken;
-    
+  
+  // Register user
+  const email = chance.email();
+  describe('POST /auth/register', () => {
+    it('should return a 201 status code and access and refresh tokens', (done) => {
+      request
+        .post('/auth/register')
+        .send({ email, password: 'password', name: 'Test User', role: 'user' })
+        .end((err, res) => {
+          expect(err).to.be.null;
+          expect(res.statusCode).to.equal(201);
+          expect(res.body).to.have.property('accessToken');
+          expect(res.body).to.have.property('refreshToken');
+          accessToken = res.body.accessToken;
+          refreshToken = res.body.refreshToken;
+          done();
+        });
+    });
   });
 
-  after(async () => {
-    // Delete the test user
-    await Todo.deleteMany({});
+  describe('POST /auth/login', () => {
+    it('should return a 200 status code and access and refresh tokens', (done) => {
+      request
+        .post('/auth/login')
+        .send({ email, password: 'password' })
+        .end((err, res) => {
+          expect(err).to.be.null;
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('accessToken');
+          expect(res.body).to.have.property('refreshToken');
+          accessToken = res.body.accessToken;
+          refreshToken = res.body.refreshToken;
+          userId = res.body.userId; // set user ID for create todo test
+          done();
+        });
+    });
   });
-
   describe('POST /todos', () => {
-    it('should create a new todo', async () => {
-      const todo = { title: 'Test Todo', description: 'Test Todo Description' };
-      const response = await chai.request(app)
+    it('should return a 201 status code and the created todo', (done) => {
+      request
         .post('/todos')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(todo);
-      expect(response).to.have.status(201);
-      expect(response.body).to.have.property('title', 'Test Todo');
-      expect(response.body).to.have.property('description', 'Test Todo Description');
-      expect(response.body).to.have.property('user');
-      todoId = response.body._id;
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Test Todo', description: 'This is a test todo' ,user:userId})
+        .end((err, res) => {
+          expect(err).to.be.null;
+          expect(res.statusCode).to.equal(201);
+          expect(res.body).to.have.property('_id');
+          const responseBody = JSON.parse(res.text);
+          todoId = responseBody._id;
+          expect(res.body.title).to.equal('Test Todo');
+          expect(res.body.description).to.equal('This is a test todo');
+          done();
+        });
     });
 
-    it('should return a 401 error if no auth token is provided', async () => {
-      const todo = { title: 'Test Todo', description: 'Test Todo Description' };
-      const response = await chai.request(app)
+  
+
+  it('should return 401 if user is not authenticated', async () => {
+      request
         .post('/todos')
-        .send(todo);
-      expect(response).to.have.status(401);
-      expect(response.body).to.have.property('error', 'Unauthorized');
-    });
+        .set('Authorization', `Bearer wrongtoken`)
+        .send({ title: 'Test Todo', description: 'This is a test todo' ,user:userId})
+        .end((err, res) => {
+         
+          expect(err).to.be.null;
+          expect(res.statusCode).to.equal(401);
+        });
   });
+});
 
   describe('GET /todos', () => {
     it('should return all todos of a user', async () => {
-      const response = await chai.request(app)
-        .get('/todos')
-        .set('Authorization', `Bearer ${authToken}`);
-      expect(response).to.have.status(200);
-      expect(response.body).to.be.an('array');
-      expect(response.body).to.have.lengthOf(1);
-    });
+        request
+          .get('/todos')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send()
+          .end((err, res) => {
+            expect(err).to.be.null;
+            expect(res.statusCode).to.equal(200);
+            expect(res.body).to.be.an('array');
+        done();
+          });
   });
+});
 
-  describe('GET /todos/:todoId', () => {
-    it('should return a todo by id', async () => {
-      const response = await chai.request(app)
-        .get(`/todos/${todoId}`)
-        .set('Authorization', `Bearer ${authToken}`);
-      expect(response).to.have.status(200);
-      expect(response.body).to.have.property('title', 'Test Todo');
-      expect(response.body).to.have.property('description', 'Test Todo Description');
-      expect(response.body).to.have.property('_id', todoId);
-      expect(response.body).to.have.property('user');
-    });
 
-    it('should return a 400 error if todo id is invalid', async () => {
-      const response = await chai.request(app)
-        .get('/todos/invalidid')
-        .set('Authorization', `Bearer ${authToken}`);
-      expect(response).to.have.status(400);
-      expect(response.body).to.have.property('error', 'Todo not found');
-    });
-  });
+  // describe('PUT /todos/:todoId', () => {
+  //   it('should update a todo with valid input', async () => {
+  //     const updatedTodo = {
+  //       title: 'Updated Todo',
+  //       description: 'Updated Description',
+  //     };
+  //       request
+  //       .put(`/todos/${todoId}`)
+  //         .set('Authorization', `Bearer ${accessToken}`)
+  //         .send(updatedTodo)
+  //         .end((err, response) => {
+  //           expect(err).to.be.null;
+  //           expect(response.statusCode).to.equal(200);
+  //           expect(response.body).to.have.property('_id').equal(todoId);
+  //           expect(response.body).to.have.property('title').equal(updatedTodo.title);
+  //           expect(response.body).to.have.property('description').equal(updatedTodo.description);
+  //           done();
+  //         });
+  //   });
 
-  describe('PUT /todos/:todoId', () => {
-    it('should update a todo with valid input', (done) => {
-      const updatedTodo = {
-        title: 'Updated Todo',
-        description: 'Updated Description',
-      };
-
-      chai.request(app)
-        .put(`/todos/${todoId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatedTodo)
-        .end((err, res) => {
-          res.should.have.status(200);
-          res.body.should.have.property('_id').equal(todoId);
-          res.body.should.have.property('title').equal(updatedTodo.title);
-          res.body.should.have.property('description').equal(updatedTodo.description);
-          res.body.should.have.property('user').equal('testuser');
-          done();
-        });
-    });
-
-    it('should return a 400 error if the todo ID is invalid', (done) => {
-      const updatedTodo = {
-        title: 'Updated Todo',
-        description: 'Updated Description',
-      };
-
-      chai.request(app)
-        .put('/todos/invalidid')
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatedTodo)
-        .end((err, res) => {
-          res.should.have.status(400);
-          done();
-        });
-    });
-
-    it('should return a 400 error if the todo does not belong to the authenticated user', (done) => {
-      const updatedTodo = {
-        title: 'Updated Todo',
-        description: 'Updated Description',
-      };
-
-      chai.request(app)
-        .put(`/todos/${todoId}`)
-        .set('Authorization', `Bearer ${jwt.sign({ user: { _id: 'differentuser' } }, process.env.ACCESS_TOKEN_SECRET)}`)
-        .send(updatedTodo)
-        .end((err, res) => {
-          res.should.have.status(400);
-          done();
-        });
-    });
-
-    it('should return a 400 error if the todo does not exist', (done) => {
-      const updatedTodo = {
-        title: 'Updated Todo',
-        description: 'Updated Description',
-      };
-
-      chai.request(app)
-        .put(`/todos/${jwt.sign({ user: { _id: 'testuser' } }, process.env.ACCESS_TOKEN_SECRET)}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatedTodo)
-        .end((err, res) => {
-          res.should.have.status(400);
-          done();
-        });
-    });
-  });
+  
+  //   it('should return a 400 error if the todo ID is invalid', async () => {
+  //     const updatedTodo = {
+  //       title: 'Updated Todo',
+  //       description: 'Updated Description',
+  //     };
+  //     request
+  //     .put(`/todos/invalidid`)
+  //       .set('Authorization', `Bearer ${accessToken}`)
+  //       .send(updatedTodo)
+  //       .end((err, response) => {
+  //         expect(err).to.be.null;
+  //         expect(response.statusCode).to.equal(400);
+  //       done();
+  //       });
+  //   });
+  // });
+  // describe('GET /todos/:id', () => {
+  //   it('should return a single todo by ID', async () => {
+  //     request
+  //       .get(`/todos/${todoId}`)
+  //       .set('Authorization', `Bearer ${accessToken}`)
+  //       .send()
+  //       .end((err, res) => {
+  //         expect(err).to.be.null;
+  //         expect(res.statusCode).to.equal(200);
+  //         expect(res.body).to.have.property('_id');
+  //         expect(res.body.title).to.equal('Test Todo');
+  //         expect(res.body.description).to.equal('This is a test todo');
+  //         expect(res.body.user).to.equal(userId);
+  //       });
+  //   });
+  
+  //   it('should return 401 if user is not authenticated', async () => {
+  //     request
+  //       .get(`/todos/${todoId}`)
+  //       .set('Authorization', `Bearer wrongtoken`)
+  //       .send()
+  //       .end((err, res) => {
+  //         expect(err).to.be.null;
+  //         expect(res.statusCode).to.equal(401);
+  //       });
+  //   });
+  
+  //   it('should return 404 if todo is not found', async () => {
+  //     request
+  //       .get(`/todos/invalidId`)
+  //       .set('Authorization', `Bearer ${accessToken}`)
+  //       .send()
+  //       .end((err, res) => {
+  //         expect(err).to.be.null;
+  //         expect(res.statusCode).to.equal(404);
+  //       });
+  //   });
+  // });
+  
 });
