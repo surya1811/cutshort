@@ -11,16 +11,6 @@ const chance = new Chance();
 describe('Auth API', () => {
   let accessToken;
   const email = chance.email();
-  before(async () => {
-    // create a test user
-    const user = new User({
-      email,
-      password: 'password',
-      name: 'Test User',
-      role: 'user'
-    });
-    await user.save();
-  });
 
   describe('POST /auth/register', () => {
     it('should register a new user and return access and refresh tokens', async () => {
@@ -80,14 +70,14 @@ describe('Auth API', () => {
       expect(res.body.message).to.equal('Invalid credentials');
     });
   });
-
+ const testEmail=chance.email();
   describe('POST /auth/generateNewAccessToken', () => {
     it('should generate a new access token and return a response with status 200', async () => {
       const refreshToken = 'some-refresh-token';
   
       // create a test user
       const user = new User({
-        email: 'testuser1@example.com',
+       email: testEmail,
         password: 'password',
         name: 'Test User',
         role: 'user'
@@ -97,7 +87,7 @@ describe('Auth API', () => {
       // generate a refresh token for the test user
       const refreshTokenData = { userId: user.id, type: 'refresh' };
       const refreshTokenOptions = { expiresIn: '1h' };
-      const testRefreshToken = jwt.sign(refreshTokenData, process.env.JWT_SECRET, refreshTokenOptions);
+      const testRefreshToken = jwt.sign(refreshTokenData, process.env.REFRESH_TOKEN_SECRET, refreshTokenOptions);
   
       // replace the request body with the test refresh token
       const req = {
@@ -122,7 +112,7 @@ describe('Auth API', () => {
       await generateNewAccessToken(req, res);
   
       // delete the test user
-      await User.deleteOne({ email: 'testuser1@example.com' });
+      await User.deleteOne({ testEmail});
     });
   
     it('should return a 400 error if the refresh token is invalid', async () => {

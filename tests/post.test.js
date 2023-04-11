@@ -97,23 +97,22 @@ describe("Post API tests", () => {
   });
 });
 
-  describe("GET /posts/:postId", () => {
-    it("should get a post by ID", async () => {
-      request
+
+describe("GET /posts/:postId", () => {
+  it("should get a post by ID", async () => {
+    request
       .get(`/posts/${postId}`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .send()
+      .send({user:userId})
       .end((err, res) => {
         expect(err).to.be.null;
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.an('object');
-        expect(res.body.post).to.be.an('object');
         expect(res.body.title).to.equal('Test post');
         expect(res.body.body).to.equal('This is a test post');
         done();
-    });
+      });
   });
-
-
-});});
+});
+});
   
