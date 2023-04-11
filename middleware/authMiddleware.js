@@ -29,6 +29,9 @@ exports.userRegistrationRateLimiter = rateLimit({
 });
 
   exports. authenticateUser = (req, res, next) => {
+    const header=req.headers.authorization
+    if(header)
+    {
     const token = req.headers.authorization.split(" ")[1];
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
       if (err) {
@@ -38,10 +41,17 @@ exports.userRegistrationRateLimiter = rateLimit({
       req.user = decoded;
       next(); // call next middleware
     })
+  }else
+  {
+    res.send("Token is missing")
+  }
   }
 
   exports.authenticateEditTodo = async (req, res, next) => {
+    const header= req.headers.authorization
     try {
+      if(header)
+      {
       const token = req.headers.authorization.split(' ')[1];
       const todoId = req.params.todoId;
       const todo = await authFindByTodoId(todoId)
@@ -52,6 +62,7 @@ exports.userRegistrationRateLimiter = rateLimit({
       } else {
         return res.status(401).json({ message: "Unauthorized" });
       }
+    }
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message });
@@ -60,7 +71,10 @@ exports.userRegistrationRateLimiter = rateLimit({
   
 
   exports.authenticateEditPost = async (req, res, next) => {
+  const header= req.headers.authorization
     try {
+      if(header)
+      {
       const token = req.headers.authorization.split(' ')[1];
       const postId = req.params.postId;
       console.log(postId);
@@ -75,6 +89,7 @@ exports.userRegistrationRateLimiter = rateLimit({
       } else {
         return res.status(401).json({ message: "Unauthorized" });
       }
+    }
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: err.message });

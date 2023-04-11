@@ -125,7 +125,6 @@ describe('Auth API', () => {
     });
   });
   
-
   after(async () => {
     // delete the test user
     await User.deleteOne({ email: 'test1@example.com' });

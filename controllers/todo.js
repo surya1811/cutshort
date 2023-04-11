@@ -85,8 +85,6 @@ exports.authFindByTodoId = async (todoId) => {
 };
 
 exports.updateTodo = async (req, res) => {
-  console.log( req.params.todoId)
-  console.log( req.user._id)
 const todo=await Todo.findOneAndUpdate(
 {_id: req.params.todoId, user: req.user._id },
 req.body,
