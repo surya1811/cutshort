@@ -14,6 +14,7 @@
     "bcrypt": "^5.1.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
+    "bson": "^5.1.0",
     "chai": "^4.3.7",
     "chai-http": "^4.3.0",
     "chance": "^1.1.11",
@@ -21,10 +22,12 @@
     "express": "^4.18.2",
     "express-rate-limit": "^6.7.0",
     "faker": "^6.6.6",
+    "formidable": "^2.1.1",
     "jsonwebtoken": "^9.0.0",
     "mocha": "^10.2.0",
     "mongoose": "^7.0.3",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "superagent": "^8.0.9"
   },
   "devDependencies": {
     "sinon": "^11.1.2",
